@@ -182,8 +182,8 @@ export default function Dashboard() {
   // Calcular porcentagem para ranking
   const maxSales = Math.max(...data.sellers.map(s => s.salesTotal), 1)
   
-  // Meta geral fixa: R$ 200.000
-  const salesGoal = 200000
+  // Meta geral fixa: R$ 500.000
+  const salesGoal = 500000
   const goalProgress = (data.totals.totalSalesValue / salesGoal) * 100
   
   // Metas individuais fixas por vendedor
