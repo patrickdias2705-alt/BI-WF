@@ -17,10 +17,13 @@ export async function GET() {
     const supabaseKey = supabaseServiceKey || supabaseAnonKey
 
     if (!supabaseUrl || !supabaseKey) {
+      const isVercel = process.env.VERCEL === '1'
       return NextResponse.json(
         { 
           error: 'Supabase não configurado',
-          message: 'Configure NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY no arquivo .env.local'
+          message: isVercel 
+            ? 'Configure NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY e SUPABASE_SERVICE_ROLE_KEY nas Environment Variables do Vercel (Settings > Environment Variables)'
+            : 'Configure NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY no arquivo .env.local'
         },
         { status: 500 }
       )
