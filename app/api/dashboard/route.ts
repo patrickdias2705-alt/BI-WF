@@ -117,7 +117,7 @@ export async function GET() {
     const allSales = [...(closedSales || [])]
 
     // Buscar leads atribuídos a cada vendedor para relacionar vendas
-    const leadsBySeller = new Map()
+    const leadsBySeller = new Map<string, string[]>()
     for (const user of allUsers || []) {
       const { data: userLeads } = await supabase
         .from('leads')
@@ -130,7 +130,14 @@ export async function GET() {
     }
 
     // Processar dados
-    const sellersMap = new Map()
+    const sellersMap = new Map<string, {
+      id: string
+      name: string
+      salesCount: number
+      salesTotal: number
+      openQuotesCount: number
+      openQuotesValue: number
+    }>()
     const totals = {
       totalSalesValue: 0,
       totalSalesCount: 0,
@@ -139,7 +146,12 @@ export async function GET() {
     }
 
     const openQuotes: any[] = []
-    const todaySalesMap = new Map()
+    const todaySalesMap = new Map<string, {
+      sellerId: string
+      sellerName: string
+      salesCount: number
+      salesTotal: number
+    }>()
 
     // Inicializar todos os vendedores
     allUsers?.forEach((user: any) => {
@@ -162,7 +174,7 @@ export async function GET() {
     })
 
     // Criar mapa auxiliar para buscar vendedor por email ou nome
-    const sellerByEmail = new Map()
+    const sellerByEmail = new Map<string, string>()
     allUsers?.forEach((user: any) => {
       if (user.email) {
         sellerByEmail.set(user.email.toLowerCase(), user.id)
@@ -191,7 +203,7 @@ export async function GET() {
           const sellerName = budget.seller_name || budget.user_name || budget.owner_name || ''
           if (sellerName) {
             const normalizedName = sellerName.toLowerCase()
-            for (const [key, userId] of sellerByEmail.entries()) {
+            for (const [key, userId] of Array.from(sellerByEmail.entries())) {
               if (normalizedName.includes(key) || key.includes(normalizedName.split('@')[0])) {
                 sellerId = userId
                 break
@@ -202,7 +214,7 @@ export async function GET() {
 
         // Se ainda não encontrou, tentar pelo lead_id (prioridade para budget_documents)
         if ((!sellerId || !sellersMap.has(sellerId)) && budget.lead_id) {
-          for (const [userId, leadIds] of leadsBySeller.entries()) {
+          for (const [userId, leadIds] of Array.from(leadsBySeller.entries())) {
             if (leadIds.includes(budget.lead_id)) {
               sellerId = userId
               break
@@ -245,7 +257,7 @@ export async function GET() {
         // Se não encontrou pelo ID, tentar pelo nome/email
         if (!sellerId || !sellersMap.has(sellerId)) {
           const normalizedName = sellerName.toLowerCase()
-          for (const [key, userId] of sellerByEmail.entries()) {
+          for (const [key, userId] of Array.from(sellerByEmail.entries())) {
             if (normalizedName.includes(key) || key.includes(normalizedName.split('@')[0])) {
               sellerId = userId
               break
@@ -255,7 +267,7 @@ export async function GET() {
 
         // Se ainda não encontrou, tentar pelo lead_id
         if ((!sellerId || !sellersMap.has(sellerId)) && sale.lead_id) {
-          for (const [userId, leadIds] of leadsBySeller.entries()) {
+          for (const [userId, leadIds] of Array.from(leadsBySeller.entries())) {
             if (leadIds.includes(sale.lead_id)) {
               sellerId = userId
               break
@@ -306,7 +318,7 @@ export async function GET() {
       if (!sellerId || !sellersMap.has(sellerId)) {
         const normalizedName = sellerName.toLowerCase()
         // Tentar encontrar pelo email ou nome
-        for (const [key, userId] of sellerByEmail.entries()) {
+        for (const [key, userId] of Array.from(sellerByEmail.entries())) {
           if (normalizedName.includes(key) || key.includes(normalizedName.split('@')[0])) {
             sellerId = userId
             break
@@ -316,7 +328,7 @@ export async function GET() {
 
       // Se ainda não encontrou, tentar pelo lead_id (vendas relacionadas aos leads do vendedor)
       if ((!sellerId || !sellersMap.has(sellerId)) && sale.lead_id) {
-        for (const [userId, leadIds] of leadsBySeller.entries()) {
+        for (const [userId, leadIds] of Array.from(leadsBySeller.entries())) {
           if (leadIds.includes(sale.lead_id)) {
             sellerId = userId
             break
