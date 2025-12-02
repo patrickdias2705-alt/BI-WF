@@ -38,6 +38,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
+  const [hideNumbers, setHideNumbers] = useState(false)
 
   // Log inicial
   useEffect(() => {
@@ -127,6 +128,28 @@ export default function Dashboard() {
       minute: '2-digit',
       second: '2-digit',
     })
+  }
+
+  // Função para ocultar números
+  const formatCurrencyHidden = (value: number) => {
+    if (hideNumbers) {
+      return '••••••'
+    }
+    return formatCurrency(value)
+  }
+
+  const formatNumberHidden = (value: number) => {
+    if (hideNumbers) {
+      return '•••'
+    }
+    return value.toString()
+  }
+
+  const formatPercentHidden = (value: number) => {
+    if (hideNumbers) {
+      return '•••%'
+    }
+    return value.toFixed(1) + '%'
   }
 
   if (loading) {
@@ -249,6 +272,9 @@ export default function Dashboard() {
     }
   }).sort((a, b) => b.salesTotal - a.salesTotal) // Ordenar por vendas do dia
 
+  // Calcular total das vendas do dia
+  const totalTodaySales = todaySalesBySeller.reduce((sum, seller) => sum + seller.salesTotal, 0)
+
   return (
     <div className="h-screen bg-gradient-to-br from-blue-100 via-blue-50 to-indigo-100 p-4 animate-fade-in relative overflow-hidden">
       {/* Background decorativo */}
@@ -269,7 +295,20 @@ export default function Dashboard() {
                 Atualiza automaticamente a cada 30s
               </p>
             </div>
-            <div className="text-right">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setHideNumbers(!hideNumbers)}
+                className={`glass-header rounded-xl px-4 py-2 flex items-center gap-2 transition-all duration-300 ${
+                  hideNumbers 
+                    ? 'bg-red-500/20 border-red-500/40 hover:bg-red-500/30' 
+                    : 'hover:bg-white/30'
+                }`}
+              >
+                <span className="text-lg">{hideNumbers ? '👁️' : '🔒'}</span>
+                <span className="text-xs font-semibold text-gray-800">
+                  {hideNumbers ? 'Mostrar' : 'Ocultar'} Números
+                </span>
+              </button>
               <div className="glass-header rounded-xl px-4 py-2">
                 <div className="text-xs text-gray-600 mb-0.5 font-medium">Última atualização</div>
                 <div className="text-base font-semibold text-gray-800">{formatTime(lastUpdate)}</div>
@@ -290,7 +329,7 @@ export default function Dashboard() {
                 <div className="text-right">
                   <h3 className="text-gray-700 text-xs font-semibold uppercase tracking-wide mb-0.5">Total Vendido</h3>
                   <p className="text-2xl font-bold text-green-money drop-shadow-sm">
-                    {formatCurrency(data.totals.totalSalesValue)}
+                    {formatCurrencyHidden(data.totals.totalSalesValue)}
                   </p>
                 </div>
               </div>
@@ -307,7 +346,7 @@ export default function Dashboard() {
                 <div className="text-right">
                   <h3 className="text-gray-700 text-xs font-semibold uppercase tracking-wide mb-0.5">Vendas Fechadas</h3>
                   <p className="text-2xl font-bold text-royal-blue drop-shadow-sm">
-                    {data.totals.totalSalesCount}
+                    {formatNumberHidden(data.totals.totalSalesCount)}
                   </p>
                 </div>
               </div>
@@ -324,7 +363,7 @@ export default function Dashboard() {
                 <div className="text-right">
                   <h3 className="text-gray-700 text-xs font-semibold uppercase tracking-wide mb-0.5">Orçamentos em Aberto</h3>
                   <p className="text-2xl font-bold text-green-money drop-shadow-sm">
-                    {data.totals.totalOpenQuotes}
+                    {formatNumberHidden(data.totals.totalOpenQuotes)}
                   </p>
                 </div>
               </div>
@@ -342,7 +381,7 @@ export default function Dashboard() {
                 <div className="text-right">
                   <h3 className="text-gray-700 text-xs font-semibold uppercase tracking-wide mb-0.5">Ticket Médio</h3>
                   <p className="text-2xl font-bold text-royal-blue drop-shadow-sm">
-                    {formatCurrency(averageTicket)}
+                    {formatCurrencyHidden(averageTicket)}
                   </p>
                 </div>
               </div>
@@ -359,7 +398,7 @@ export default function Dashboard() {
                 <div className="text-right">
                   <h3 className="text-gray-700 text-xs font-semibold uppercase tracking-wide mb-0.5">Taxa de Conversão</h3>
                   <p className="text-2xl font-bold text-green-money drop-shadow-sm">
-                    {conversionRate.toFixed(1)}%
+                    {formatPercentHidden(conversionRate)}
                   </p>
                 </div>
               </div>
@@ -376,7 +415,7 @@ export default function Dashboard() {
                 <div className="text-right">
                   <h3 className="text-gray-700 text-xs font-semibold uppercase tracking-wide mb-0.5">Média por Vendedor</h3>
                   <p className="text-2xl font-bold text-royal-blue drop-shadow-sm">
-                    {formatCurrency(averageSalesPerSeller)}
+                    {formatCurrencyHidden(averageSalesPerSeller)}
                   </p>
                 </div>
               </div>
@@ -418,7 +457,7 @@ export default function Dashboard() {
                 </div>
                 <div className="text-right bg-white/30 backdrop-blur-sm rounded-xl px-3 py-2 border border-white/40 flex-shrink-0">
                   <div className="text-xs text-gray-600 font-medium mb-0.5">Progresso</div>
-                  <div className="text-xl font-bold text-royal-blue drop-shadow-sm">{goalProgress.toFixed(1)}%</div>
+                  <div className="text-xl font-bold text-royal-blue drop-shadow-sm">{formatPercentHidden(goalProgress)}</div>
                 </div>
               </div>
               
@@ -426,13 +465,13 @@ export default function Dashboard() {
                 <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 border border-white/30">
                   <div className="text-xs text-gray-700 font-medium mb-1.5">Meta do Mês</div>
                   <div className="text-xl font-bold text-royal-blue drop-shadow-sm leading-tight">
-                    {formatCurrency(salesGoal)}
+                    {formatCurrencyHidden(salesGoal)}
                   </div>
                 </div>
                 <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 border border-white/30">
                   <div className="text-xs text-gray-700 font-medium mb-1.5">Total Vendido</div>
                   <div className="text-xl font-bold text-green-money drop-shadow-sm leading-tight">
-                    {formatCurrency(data.totals.totalSalesValue)}
+                    {formatCurrencyHidden(data.totals.totalSalesValue)}
                   </div>
                 </div>
               </div>
@@ -446,7 +485,7 @@ export default function Dashboard() {
                   >
                     {goalProgress >= 10 && (
                       <span className="text-white text-xs font-bold drop-shadow-md">
-                        {goalProgress.toFixed(1)}%
+                        {formatPercentHidden(goalProgress)}
                       </span>
                     )}
                   </div>
@@ -460,7 +499,7 @@ export default function Dashboard() {
               
               <div className="flex items-center justify-between text-xs mt-auto">
                 <span className="text-gray-600">
-                  Faltam: <span className="font-bold text-royal-blue text-sm">{formatCurrency(Math.max(0, salesGoal - data.totals.totalSalesValue))}</span>
+                  Faltam: <span className="font-bold text-royal-blue text-sm">{formatCurrencyHidden(Math.max(0, salesGoal - data.totals.totalSalesValue))}</span>
                 </span>
                 <span className="text-gray-600 font-medium">
                   {goalProgress < 100 ? 'Em andamento' : 'Superada!'}
@@ -482,14 +521,14 @@ export default function Dashboard() {
               {/* Total geral */}
               <div className="text-center mb-4">
                 <div className="text-4xl font-bold text-green-money drop-shadow-sm mb-1">
-                  {data.totals.totalOpenQuotes}
+                  {formatNumberHidden(data.totals.totalOpenQuotes)}
                 </div>
                 <div className="text-xs text-gray-600 font-medium mb-2">
                   {data.totals.totalOpenQuotes === 1 ? 'orçamento' : 'orçamentos'}
                 </div>
                 {data.totals.totalOpenQuotesValue && data.totals.totalOpenQuotesValue > 0 && (
                   <div className="text-lg font-bold text-royal-blue">
-                    {formatCurrency(data.totals.totalOpenQuotesValue)}
+                    {formatCurrencyHidden(data.totals.totalOpenQuotesValue)}
                   </div>
                 )}
               </div>
@@ -506,13 +545,13 @@ export default function Dashboard() {
                           {seller.name.split(' ')[0]}
                         </span>
                         <span className="text-xs text-gray-600">
-                          {seller.openQuotesCount} {seller.openQuotesCount === 1 ? 'orçamento' : 'orçamentos'}
+                          {formatNumberHidden(seller.openQuotesCount)} {seller.openQuotesCount === 1 ? 'orçamento' : 'orçamentos'}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-gray-600">Total:</span>
                         <span className="text-base font-bold text-green-money">
-                          {formatCurrency(seller.openQuotesValue || 0)}
+                          {formatCurrencyHidden(seller.openQuotesValue || 0)}
                         </span>
                       </div>
                     </div>
@@ -560,13 +599,13 @@ export default function Dashboard() {
                             {seller.sellerName}
                           </h3>
                           <p className="text-sm text-gray-600">
-                            {seller.salesCount} {seller.salesCount === 1 ? 'venda' : 'vendas'}
+                            {formatNumberHidden(seller.salesCount)} {seller.salesCount === 1 ? 'venda' : 'vendas'}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
                         <p className="text-2xl font-bold text-green-money drop-shadow-sm">
-                          {formatCurrency(seller.salesTotal)}
+                          {formatCurrencyHidden(seller.salesTotal)}
                         </p>
                         {seller.salesTotal === 0 && (
                           <p className="text-xs text-gray-500 mt-1">Sem vendas hoje</p>
@@ -590,6 +629,35 @@ export default function Dashboard() {
                     )}
                   </div>
                 ))}
+              </div>
+              
+              {/* Total do Dia - Com animação premium */}
+              <div className="mt-4 pt-4 border-t-2 border-white/30">
+                <div className="glass-card-premium rounded-2xl p-4 bg-gradient-to-br from-green-money/20 to-green-500/20 border-2 border-green-money/40 animate-premium-pulse">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-money to-green-500 flex items-center justify-center text-white text-xl shadow-2xl animate-premium-pulse-icon">
+                        💰
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                          Total Vendido Hoje
+                        </h3>
+                        <p className="text-xs text-gray-600 mt-0.5">Soma de todas as vendedoras</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-bold text-green-money drop-shadow-lg animate-premium-pulse-text">
+                        {formatCurrencyHidden(totalTodaySales)}
+                      </p>
+                      {totalTodaySales > 0 && (
+                        <p className="text-xs text-gray-600 mt-1">
+                          {formatNumberHidden(todaySalesBySeller.reduce((sum, s) => sum + s.salesCount, 0))} {todaySalesBySeller.reduce((sum, s) => sum + s.salesCount, 0) === 1 ? 'venda' : 'vendas'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -625,13 +693,13 @@ export default function Dashboard() {
                         </div>
                         <div className="text-right">
                           <p className="text-base font-bold text-green-money drop-shadow-sm">
-                            {formatCurrency(seller.salesTotal)}
+                            {formatCurrencyHidden(seller.salesTotal)}
                           </p>
                           {seller.hasReachedGoal ? (
                             <p className="text-xs text-green-money font-semibold">🎯 Meta!</p>
                           ) : (
                             <p className="text-xs text-royal-blue font-medium">
-                              Falta: {formatCurrency(seller.remaining)}
+                              Falta: {formatCurrencyHidden(seller.remaining)}
                             </p>
                           )}
                         </div>
@@ -640,9 +708,9 @@ export default function Dashboard() {
                       {/* Barra de progresso da meta individual */}
                       <div className="mb-2">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-gray-600">Meta: {formatCurrency(seller.individualGoal)}</span>
+                          <span className="text-xs text-gray-600">Meta: {formatCurrencyHidden(seller.individualGoal)}</span>
                           <span className={`text-xs font-bold ${seller.hasReachedGoal ? 'text-green-money' : 'text-royal-blue'}`}>
-                            {goalPercentage.toFixed(1)}%
+                            {formatPercentHidden(goalPercentage)}
                           </span>
                         </div>
                         <div className="h-2.5 bg-white/30 rounded-full overflow-hidden backdrop-blur-sm">
@@ -658,11 +726,11 @@ export default function Dashboard() {
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1.5">
                           <span className="text-royal-blue font-bold">✓</span>
-                          <span className="text-gray-600 font-medium">{seller.salesCount} vendas</span>
+                          <span className="text-gray-600 font-medium">{formatNumberHidden(seller.salesCount)} vendas</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <span className="text-green-money font-bold">📝</span>
-                          <span className="text-gray-600 font-medium">{seller.openQuotesCount} orçamentos</span>
+                          <span className="text-gray-600 font-medium">{formatNumberHidden(seller.openQuotesCount)} orçamentos</span>
                         </div>
                       </div>
                     </div>
