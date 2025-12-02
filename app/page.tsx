@@ -632,26 +632,26 @@ export default function Dashboard() {
               </div>
               
               {/* Total do Dia - Com animação premium */}
-              <div className="mt-4 pt-4 border-t-2 border-white/30">
-                <div className="glass-card-premium rounded-2xl p-4 bg-gradient-to-br from-green-money/20 to-green-500/20 border-2 border-green-money/40 animate-premium-pulse">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-money to-green-500 flex items-center justify-center text-white text-xl shadow-2xl animate-premium-pulse-icon">
+              <div className="mt-3 pt-3 border-t-2 border-white/30">
+                <div className="glass-card-premium rounded-xl p-3 bg-gradient-to-br from-green-money/20 to-green-500/20 border-2 border-green-money/40 animate-premium-pulse">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-money to-green-500 flex items-center justify-center text-white text-lg shadow-xl flex-shrink-0">
                         💰
                       </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                      <div className="min-w-0">
+                        <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide whitespace-nowrap">
                           Total Vendido Hoje
                         </h3>
-                        <p className="text-xs text-gray-600 mt-0.5">Soma de todas as vendedoras</p>
+                        <p className="text-xs text-gray-600 mt-0.5 whitespace-nowrap">Soma de todas as vendedoras</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-3xl font-bold text-green-money drop-shadow-lg animate-premium-pulse-text">
+                    <div className="text-right flex-shrink-0 min-w-0">
+                      <p className="text-xl font-bold text-green-money drop-shadow-sm animate-premium-pulse-text whitespace-nowrap">
                         {formatCurrencyHidden(totalTodaySales)}
                       </p>
                       {totalTodaySales > 0 && (
-                        <p className="text-xs text-gray-600 mt-1">
+                        <p className="text-xs text-gray-600 mt-0.5 whitespace-nowrap">
                           {formatNumberHidden(todaySalesBySeller.reduce((sum, s) => sum + s.salesCount, 0))} {todaySalesBySeller.reduce((sum, s) => sum + s.salesCount, 0) === 1 ? 'venda' : 'vendas'}
                         </p>
                       )}
