@@ -276,7 +276,7 @@ export default function Dashboard() {
   const totalTodaySales = todaySalesBySeller.reduce((sum, seller) => sum + seller.salesTotal, 0)
 
   return (
-    <div className="h-screen bg-gradient-to-br from-blue-100 via-blue-50 to-indigo-100 p-4 animate-fade-in relative overflow-hidden">
+    <div className="min-h-screen md:h-screen bg-gradient-to-br from-blue-100 via-blue-50 to-indigo-100 p-2 md:p-4 animate-fade-in relative overflow-x-hidden">
       {/* Background decorativo */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-royal-blue rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
@@ -285,50 +285,50 @@ export default function Dashboard() {
       
       <div className="h-full max-w-[1920px] mx-auto relative z-10 flex flex-col">
         {/* Header */}
-        <div className="mb-2 animate-slide-up">
-          <div className="flex items-center justify-between">
+        <div className="mb-2 md:mb-2 animate-slide-up">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 md:gap-0">
             <div>
-              <h1 className="text-3xl font-bold text-royal-blue drop-shadow-sm">
+              <h1 className="text-xl md:text-3xl font-bold text-royal-blue drop-shadow-sm">
                 Dashboard de Vendas
               </h1>
-              <p className="text-gray-700 text-sm font-medium">
+              <p className="text-gray-700 text-xs md:text-sm font-medium">
                 Atualiza automaticamente a cada 30s
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-3 w-full md:w-auto">
               <button
                 onClick={() => setHideNumbers(!hideNumbers)}
-                className={`glass-header rounded-xl px-4 py-2 flex items-center gap-2 transition-all duration-300 ${
+                className={`glass-header rounded-xl px-3 py-2 md:px-4 flex items-center justify-center gap-2 transition-all duration-300 text-xs md:text-sm ${
                   hideNumbers 
                     ? 'bg-red-500/20 border-red-500/40 hover:bg-red-500/30' 
                     : 'hover:bg-white/30'
                 }`}
               >
-                <span className="text-lg">{hideNumbers ? '👁️' : '🔒'}</span>
-                <span className="text-xs font-semibold text-gray-800">
+                <span className="text-base md:text-lg">{hideNumbers ? '👁️' : '🔒'}</span>
+                <span className="font-semibold text-gray-800">
                   {hideNumbers ? 'Mostrar' : 'Ocultar'} Números
                 </span>
               </button>
-              <div className="glass-header rounded-xl px-4 py-2">
+              <div className="glass-header rounded-xl px-3 py-2 md:px-4 text-center md:text-right">
                 <div className="text-xs text-gray-600 mb-0.5 font-medium">Última atualização</div>
-                <div className="text-base font-semibold text-gray-800">{formatTime(lastUpdate)}</div>
+                <div className="text-sm md:text-base font-semibold text-gray-800">{formatTime(lastUpdate)}</div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Grid Principal - Tudo em uma linha */}
-        <div className="flex-1 grid grid-cols-12 gap-3 overflow-hidden">
+        {/* Grid Principal - Responsivo */}
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-3 overflow-y-auto md:overflow-hidden pb-4 md:pb-0">
           {/* Coluna 1: Cards de Totais */}
-          <div className="col-span-3 flex flex-col gap-3">
-            <div className="glass-card-premium rounded-2xl p-4 glass-card-hover animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <div className="col-span-1 md:col-span-3 flex flex-col gap-2 md:gap-3">
+            <div className="glass-card-premium rounded-xl md:rounded-2xl p-3 md:p-4 glass-card-hover animate-slide-up" style={{ animationDelay: '0.1s' }}>
               <div className="flex items-center justify-between mb-2">
-                <div className="w-10 h-10 rounded-xl bg-green-money flex items-center justify-center text-white text-lg shadow-xl">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-green-money flex items-center justify-center text-white text-base md:text-lg shadow-xl">
                   R$
                 </div>
                 <div className="text-right">
                   <h3 className="text-gray-700 text-xs font-semibold uppercase tracking-wide mb-0.5">Total Vendido</h3>
-                  <p className="text-2xl font-bold text-green-money drop-shadow-sm">
+                  <p className="text-xl md:text-2xl font-bold text-green-money drop-shadow-sm">
                     {formatCurrencyHidden(data.totals.totalSalesValue)}
                   </p>
                 </div>
@@ -444,33 +444,33 @@ export default function Dashboard() {
           </div>
 
           {/* Coluna 2: Meta vs Vendido + Estatísticas */}
-          <div className="col-span-3 flex flex-col gap-2">
-            <div className="glass-card-premium rounded-2xl p-5 border-2 border-royal-blue/30 shadow-2xl flex-1 flex flex-col min-h-0">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-royal-blue to-blue-600 flex items-center justify-center text-white text-xl shadow-xl flex-shrink-0">
+          <div className="col-span-1 md:col-span-3 flex flex-col gap-2">
+            <div className="glass-card-premium rounded-xl md:rounded-2xl p-3 md:p-5 border-2 border-royal-blue/30 shadow-2xl flex-1 flex flex-col min-h-0">
+              <div className="flex items-center justify-between mb-3 md:mb-4">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-gradient-to-br from-royal-blue to-blue-600 flex items-center justify-center text-white text-base md:text-xl shadow-xl flex-shrink-0">
                     🎯
                   </div>
-                  <h2 className="text-xl font-bold text-royal-blue drop-shadow-sm">
+                  <h2 className="text-base md:text-xl font-bold text-royal-blue drop-shadow-sm">
                     Meta de Vendas
                   </h2>
                 </div>
-                <div className="text-right bg-white/30 backdrop-blur-sm rounded-xl px-3 py-2 border border-white/40 flex-shrink-0">
+                <div className="text-right bg-white/30 backdrop-blur-sm rounded-lg md:rounded-xl px-2 py-1.5 md:px-3 md:py-2 border border-white/40 flex-shrink-0">
                   <div className="text-xs text-gray-600 font-medium mb-0.5">Progresso</div>
-                  <div className="text-xl font-bold text-royal-blue drop-shadow-sm">{formatPercentHidden(goalProgress)}</div>
+                  <div className="text-base md:text-xl font-bold text-royal-blue drop-shadow-sm">{formatPercentHidden(goalProgress)}</div>
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 border border-white/30">
-                  <div className="text-xs text-gray-700 font-medium mb-1.5">Meta do Mês</div>
-                  <div className="text-xl font-bold text-royal-blue drop-shadow-sm leading-tight">
+              <div className="grid grid-cols-2 gap-2 md:gap-3 mb-3 md:mb-4">
+                <div className="bg-white/20 backdrop-blur-sm rounded-lg md:rounded-xl p-3 md:p-4 border border-white/30">
+                  <div className="text-xs text-gray-700 font-medium mb-1 md:mb-1.5">Meta do Mês</div>
+                  <div className="text-base md:text-xl font-bold text-royal-blue drop-shadow-sm leading-tight">
                     {formatCurrencyHidden(salesGoal)}
                   </div>
                 </div>
-                <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 border border-white/30">
-                  <div className="text-xs text-gray-700 font-medium mb-1.5">Total Vendido</div>
-                  <div className="text-xl font-bold text-green-money drop-shadow-sm leading-tight">
+                <div className="bg-white/20 backdrop-blur-sm rounded-lg md:rounded-xl p-3 md:p-4 border border-white/30">
+                  <div className="text-xs text-gray-700 font-medium mb-1 md:mb-1.5">Total Vendido</div>
+                  <div className="text-base md:text-xl font-bold text-green-money drop-shadow-sm leading-tight">
                     {formatCurrencyHidden(data.totals.totalSalesValue)}
                   </div>
                 </div>
@@ -566,7 +566,7 @@ export default function Dashboard() {
           </div>
 
           {/* Coluna 3: Vendas do Dia e Ranking */}
-          <div className="col-span-3 flex flex-col gap-2">
+          <div className="col-span-1 md:col-span-3 flex flex-col gap-2">
             {/* Vendas do Dia Atual */}
             <div className="glass-card-premium rounded-2xl p-4 flex-1 flex flex-col min-h-0">
               <div className="flex items-center justify-between mb-4">
@@ -741,18 +741,18 @@ export default function Dashboard() {
           </div>
 
           {/* Coluna 4: Gráficos */}
-          <div className="col-span-3 flex flex-col gap-2">
+          <div className="col-span-1 md:col-span-3 flex flex-col gap-2">
             {/* Gráfico Pizza */}
-            <div className="glass-card-premium rounded-2xl p-4 flex-1 flex flex-col min-h-0">
+            <div className="glass-card-premium rounded-xl md:rounded-2xl p-3 md:p-4 flex-1 flex flex-col min-h-[300px] md:min-h-0">
               <div className="flex items-center justify-between mb-2">
-                <h2 className="text-base font-bold text-royal-blue drop-shadow-sm">
+                <h2 className="text-sm md:text-base font-bold text-royal-blue drop-shadow-sm">
                   Distribuição por Vendedor
                 </h2>
-                <div className="w-7 h-7 rounded-lg bg-royal-blue flex items-center justify-center text-white text-xs shadow-xl">
+                <div className="w-6 h-6 md:w-7 md:h-7 rounded-lg bg-royal-blue flex items-center justify-center text-white text-xs shadow-xl">
                   📊
                 </div>
               </div>
-              <div className="flex-1 flex items-center justify-center min-h-0">
+              <div className="flex-1 flex items-center justify-center min-h-[250px] md:min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -825,16 +825,16 @@ export default function Dashboard() {
             </div>
 
             {/* Gráfico de Barras */}
-            <div className="glass-card-premium rounded-2xl p-4 flex-1 flex flex-col min-h-0">
+            <div className="glass-card-premium rounded-xl md:rounded-2xl p-3 md:p-4 flex-1 flex flex-col min-h-[300px] md:min-h-0">
               <div className="flex items-center justify-between mb-2">
-                <h2 className="text-base font-bold text-royal-blue drop-shadow-sm">
+                <h2 className="text-sm md:text-base font-bold text-royal-blue drop-shadow-sm">
                   Comparativo Vendedores
                 </h2>
-                <div className="w-7 h-7 rounded-lg bg-green-money flex items-center justify-center text-white text-xs shadow-xl">
+                <div className="w-6 h-6 md:w-7 md:h-7 rounded-lg bg-green-money flex items-center justify-center text-white text-xs shadow-xl">
                   📈
                 </div>
               </div>
-              <div className="flex-1 flex items-center justify-center min-h-0">
+              <div className="flex-1 flex items-center justify-center min-h-[250px] md:min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart 
                     data={chartData} 

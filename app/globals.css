@@ -12,9 +12,24 @@
     overflow: hidden;
   }
   
+  @media (max-width: 768px) {
+    html, body {
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+  
   #__next {
     height: 100%;
     overflow: hidden;
+  }
+  
+  @media (max-width: 768px) {
+    #__next {
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
   }
 }
 
