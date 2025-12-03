@@ -213,8 +213,8 @@ export default function Dashboard() {
   const getIndividualGoal = (sellerName: string): number => {
     const name = sellerName.toLowerCase()
     if (name.includes('maria')) return 150000 // Maria: R$ 150.000
-    if (name.includes('elaine')) return 60000 // Elaine: R$ 60.000
-    if (name.includes('julia')) return 60000 // Julia: R$ 60.000
+    if (name.includes('elaine')) return 100000 // Elaine: R$ 100.000
+    if (name.includes('julia')) return 350000 // Julia: R$ 350.000
     return 0
   }
   
