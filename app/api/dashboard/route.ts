@@ -98,18 +98,37 @@ export async function GET() {
       console.log('⚠️ Erro ao buscar vendas por stage_name:', stageClosedError.message)
     }
 
-    // Buscar também vendas que podem ter sido atualizadas recentemente (mesmo sem sold_at)
-    // Isso captura vendas que foram marcadas como vendidas mas não têm sold_at
+    // Buscar também vendas que podem ter sido atualizadas HOJE (mesmo sem sold_at)
+    // Isso captura vendas que foram marcadas como vendidas HOJE mas não têm sold_at preenchido
+    const todayISO = today.toISOString()
     const { data: recentUpdatedSales, error: recentUpdatedError } = await supabase
       .from('sales')
       .select('id, amount, stage_name, sold_at, sold_by, sold_by_name, lead_id, created_at, updated_at')
-      .gte('updated_at', sixtyDaysAgoISO)
-      .or('stage_name.ilike.%vendido%,stage_name.ilike.%fechado%,stage_name.ilike.%dinheiro%')
+      .gte('updated_at', todayISO) // Vendas atualizadas HOJE
+      .or('stage_name.ilike.%vendido%,stage_name.ilike.%fechado%,stage_name.ilike.%dinheiro%,stage_name.eq.Dinheiro no bolso,stage_name.eq.Dinheiro na mesa')
       .order('updated_at', { ascending: false })
       .limit(5000)
 
     if (recentUpdatedError) {
       console.log('⚠️ Erro ao buscar vendas atualizadas recentemente:', recentUpdatedError.message)
+    } else {
+      console.log(`📅 Vendas atualizadas HOJE encontradas: ${recentUpdatedSales?.length || 0}`)
+    }
+    
+    // Buscar também vendas com sold_at de HOJE (vendas marcadas como vendidas hoje)
+    const { data: todaySoldSales, error: todaySoldError } = await supabase
+      .from('sales')
+      .select('id, amount, stage_name, sold_at, sold_by, sold_by_name, lead_id, created_at, updated_at')
+      .not('sold_at', 'is', null)
+      .gte('sold_at', todayISO) // sold_at de HOJE
+      .lt('sold_at', tomorrow.toISOString())
+      .order('sold_at', { ascending: false })
+      .limit(5000)
+
+    if (todaySoldError) {
+      console.log('⚠️ Erro ao buscar vendas com sold_at de hoje:', todaySoldError.message)
+    } else {
+      console.log(`📅 Vendas com sold_at de HOJE encontradas: ${todaySoldSales?.length || 0}`)
     }
 
     // Combinar TODAS as vendas fechadas encontradas
@@ -128,7 +147,7 @@ export async function GET() {
       }
     })
     
-    // Adicionar vendas atualizadas recentemente (sem duplicatas)
+    // Adicionar vendas atualizadas HOJE (sem duplicatas)
     ;(recentUpdatedSales || []).forEach((sale: any) => {
       if (!allClosedSalesMap.has(sale.id)) {
         // Só adicionar se realmente for uma venda fechada
@@ -142,9 +161,16 @@ export async function GET() {
       }
     })
     
+    // Adicionar vendas com sold_at de HOJE (sem duplicatas)
+    ;(todaySoldSales || []).forEach((sale: any) => {
+      if (!allClosedSalesMap.has(sale.id)) {
+        allClosedSalesMap.set(sale.id, sale)
+      }
+    })
+    
     const allClosedSales = Array.from(allClosedSalesMap.values())
     
-    console.log(`📊 Vendas fechadas encontradas: ${allClosedSales.length} (${closedSales?.length || 0} com sold_at + ${stageClosedSales?.length || 0} por stage_name + ${recentUpdatedSales?.length || 0} atualizadas recentemente)`)
+    console.log(`📊 Vendas fechadas encontradas: ${allClosedSales.length} (${closedSales?.length || 0} com sold_at + ${stageClosedSales?.length || 0} por stage_name + ${recentUpdatedSales?.length || 0} atualizadas HOJE + ${todaySoldSales?.length || 0} com sold_at de HOJE)`)
 
     // Buscar orçamentos da tabela budget_documents
     let budgetsData: any[] = []
@@ -358,7 +384,8 @@ export async function GET() {
         let sellerId = sale.sold_by
         const sellerName = sale.sold_by_name || 'Sem vendedor'
         const saleAmount = parseFloat(sale.amount || 0)
-        const saleDate = new Date(sale.created_at || sale.sold_at)
+        // Para orçamentos, usar created_at como data principal
+        const saleDate = new Date(sale.created_at || sale.sold_at || sale.updated_at)
 
         // Se não encontrou pelo ID, tentar pelo nome/email
         if (!sellerId || !sellersMap.has(sellerId)) {
@@ -421,8 +448,12 @@ export async function GET() {
       let sellerId = sale.sold_by
       const sellerName = sale.sold_by_name || 'Sem vendedor'
       const saleAmount = parseFloat(sale.amount || 0)
-      // Usar sold_at como data principal, fallback para created_at
-      const saleDate = sale.sold_at ? new Date(sale.sold_at) : new Date(sale.created_at)
+      // IMPORTANTE: Usar sold_at como data principal para "vendas de hoje"
+      // Se não tiver sold_at, usar updated_at (pode ter sido marcado como vendido hoje)
+      // Só usar created_at como último recurso
+      const saleDate = sale.sold_at 
+        ? new Date(sale.sold_at) 
+        : (sale.updated_at ? new Date(sale.updated_at) : new Date(sale.created_at))
 
       // Verificar se é venda fechada (tem sold_at ou stage_name indica venda)
       const isSold = sale.sold_at !== null || 
@@ -510,12 +541,35 @@ export async function GET() {
           totals.totalSalesValue += saleAmount
           totals.totalSalesCount++
 
-          // Vendas do dia atual (usar sold_at se disponível, senão created_at)
-          if (saleDate >= today && saleDate < tomorrow) {
+          // Vendas do dia atual: considerar vendas marcadas como vendidas HOJE
+          // Prioridade: sold_at > updated_at > created_at
+          // Se foi marcado como vendido hoje (sold_at de hoje), deve aparecer em "vendas de hoje"
+          // IMPORTANTE: Mesmo que criado antes, se foi marcado como vendido HOJE, conta como venda de hoje
+          let isTodaySale = false
+          
+          if (sale.sold_at) {
+            // Se tem sold_at, usar essa data (data em que foi marcado como vendido)
+            const soldAtDate = new Date(sale.sold_at)
+            isTodaySale = soldAtDate >= today && soldAtDate < tomorrow
+          } else if (sale.updated_at) {
+            // Se não tem sold_at mas tem updated_at, verificar se foi atualizado hoje
+            const updatedAtDate = new Date(sale.updated_at)
+            isTodaySale = updatedAtDate >= today && updatedAtDate < tomorrow
+          } else {
+            // Último recurso: usar created_at (mas isso não é ideal)
+            isTodaySale = saleDate >= today && saleDate < tomorrow
+          }
+          
+          if (isTodaySale) {
             const todayData = todaySalesMap.get(sellerId)
             if (todayData) {
               todayData.salesCount++
               todayData.salesTotal += saleAmount
+              
+              // Debug para vendas da Elaine
+              if (isElaineSale) {
+                console.log(`✅ Venda da Elaine de HOJE: R$ ${saleAmount} - sold_at: ${sale.sold_at} - updated_at: ${sale.updated_at}`)
+              }
             }
           }
         }
