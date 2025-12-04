@@ -269,7 +269,7 @@ export async function GET() {
         sellerByName.set(normalizedName, user.id)
         // Adicionar variações: primeiro nome, último nome, etc
         const nameParts = normalizedName.split(' ')
-        nameParts.forEach(part => {
+        nameParts.forEach((part: string) => {
           const cleanPart = part.trim()
           if (cleanPart.length > 2) { // Ignorar partes muito curtas
             sellerByName.set(cleanPart, user.id)
