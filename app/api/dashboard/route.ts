@@ -37,10 +37,16 @@ export async function GET() {
       }
     })
 
-    // Data de 60 dias atrás (aumentado para incluir mais vendas)
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 60)
-    const thirtyDaysAgoISO = thirtyDaysAgo.toISOString()
+    // Data de 365 dias atrás (1 ano) para capturar todas as vendas recentes
+    // Mas ainda filtrar para não sobrecarregar
+    const oneYearAgo = new Date()
+    oneYearAgo.setDate(oneYearAgo.getDate() - 365)
+    const oneYearAgoISO = oneYearAgo.toISOString()
+    
+    // Data de 60 dias para vendas atualizadas recentemente
+    const sixtyDaysAgo = new Date()
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60)
+    const sixtyDaysAgoISO = sixtyDaysAgo.toISOString()
 
     // Data de hoje (início do dia)
     const today = new Date()
@@ -61,18 +67,84 @@ export async function GET() {
       throw usersError
     }
 
-    // Buscar vendas fechadas dos últimos 60 dias
+    // Buscar TODAS as vendas fechadas (com sold_at preenchido)
+    // Buscar do último ano para capturar todas as vendas fechadas recentes
     const { data: closedSales, error: closedSalesError } = await supabase
       .from('sales')
-      .select('id, amount, stage_name, sold_at, sold_by, sold_by_name, lead_id, created_at')
+      .select('id, amount, stage_name, sold_at, sold_by, sold_by_name, lead_id, created_at, updated_at')
       .not('sold_at', 'is', null)
-      .gte('created_at', thirtyDaysAgoISO)
-      .order('created_at', { ascending: false })
+      .gte('sold_at', oneYearAgoISO) // Último ano
+      .order('sold_at', { ascending: false })
+      .limit(10000) // Limite alto para pegar todas
 
     if (closedSalesError) {
       console.error('Erro ao buscar vendas fechadas:', closedSalesError)
       throw closedSalesError
     }
+
+    // Buscar TODAS as vendas que podem ter stage_name indicando venda mas sem sold_at
+    // Isso captura casos onde a venda foi marcada como fechada mas sold_at não foi preenchido
+    // Buscar do último ano
+    const { data: stageClosedSales, error: stageClosedError } = await supabase
+      .from('sales')
+      .select('id, amount, stage_name, sold_at, sold_by, sold_by_name, lead_id, created_at, updated_at')
+      .is('sold_at', null)
+      .or('stage_name.eq.Dinheiro no bolso,stage_name.eq.Dinheiro na mesa,stage_name.ilike.%vendido%,stage_name.ilike.%fechado%,stage_name.ilike.%dinheiro%')
+      .gte('created_at', oneYearAgoISO) // Último ano
+      .order('created_at', { ascending: false })
+      .limit(10000)
+
+    if (stageClosedError) {
+      console.log('⚠️ Erro ao buscar vendas por stage_name:', stageClosedError.message)
+    }
+
+    // Buscar também vendas que podem ter sido atualizadas recentemente (mesmo sem sold_at)
+    // Isso captura vendas que foram marcadas como vendidas mas não têm sold_at
+    const { data: recentUpdatedSales, error: recentUpdatedError } = await supabase
+      .from('sales')
+      .select('id, amount, stage_name, sold_at, sold_by, sold_by_name, lead_id, created_at, updated_at')
+      .gte('updated_at', sixtyDaysAgoISO)
+      .or('stage_name.ilike.%vendido%,stage_name.ilike.%fechado%,stage_name.ilike.%dinheiro%')
+      .order('updated_at', { ascending: false })
+      .limit(5000)
+
+    if (recentUpdatedError) {
+      console.log('⚠️ Erro ao buscar vendas atualizadas recentemente:', recentUpdatedError.message)
+    }
+
+    // Combinar TODAS as vendas fechadas encontradas
+    // Remover duplicatas baseado no ID
+    const allClosedSalesMap = new Map<string, any>()
+    
+    // Adicionar vendas com sold_at (prioridade)
+    ;(closedSales || []).forEach((sale: any) => {
+      allClosedSalesMap.set(sale.id, sale)
+    })
+    
+    // Adicionar vendas por stage_name (sem duplicatas)
+    ;(stageClosedSales || []).forEach((sale: any) => {
+      if (!allClosedSalesMap.has(sale.id)) {
+        allClosedSalesMap.set(sale.id, sale)
+      }
+    })
+    
+    // Adicionar vendas atualizadas recentemente (sem duplicatas)
+    ;(recentUpdatedSales || []).forEach((sale: any) => {
+      if (!allClosedSalesMap.has(sale.id)) {
+        // Só adicionar se realmente for uma venda fechada
+        const isSold = sale.sold_at !== null || 
+                       sale.stage_name?.toLowerCase().includes('vendido') ||
+                       sale.stage_name?.toLowerCase().includes('fechado') ||
+                       sale.stage_name?.toLowerCase().includes('dinheiro')
+        if (isSold) {
+          allClosedSalesMap.set(sale.id, sale)
+        }
+      }
+    })
+    
+    const allClosedSales = Array.from(allClosedSalesMap.values())
+    
+    console.log(`📊 Vendas fechadas encontradas: ${allClosedSales.length} (${closedSales?.length || 0} com sold_at + ${stageClosedSales?.length || 0} por stage_name + ${recentUpdatedSales?.length || 0} atualizadas recentemente)`)
 
     // Buscar orçamentos da tabela budget_documents
     let budgetsData: any[] = []
@@ -116,8 +188,8 @@ export async function GET() {
       }
     }
 
-    // Combinar vendas fechadas
-    const allSales = [...(closedSales || [])]
+    // Usar vendas fechadas combinadas
+    const allSales = allClosedSales
 
     // Buscar leads atribuídos a cada vendedor para relacionar vendas
     const leadsBySeller = new Map<string, string[]>()
@@ -177,14 +249,45 @@ export async function GET() {
     })
 
     // Criar mapa auxiliar para buscar vendedor por email ou nome
+    // Incluir variações de nome para melhor matching
     const sellerByEmail = new Map<string, string>()
+    const sellerByName = new Map<string, string>()
+    const sellerById = new Map<string, any>()
+    
     allUsers?.forEach((user: any) => {
+      sellerById.set(user.id, user)
+      
       if (user.email) {
-        sellerByEmail.set(user.email.toLowerCase(), user.id)
+        const emailLower = user.email.toLowerCase()
+        sellerByEmail.set(emailLower, user.id)
+        // Também adicionar parte antes do @ do email
+        const emailPrefix = emailLower.split('@')[0]
+        sellerByEmail.set(emailPrefix, user.id)
       }
       if (user.name) {
-        sellerByEmail.set(user.name.toLowerCase(), user.id)
+        const normalizedName = user.name.toLowerCase().trim()
+        sellerByName.set(normalizedName, user.id)
+        // Adicionar variações: primeiro nome, último nome, etc
+        const nameParts = normalizedName.split(' ')
+        nameParts.forEach(part => {
+          const cleanPart = part.trim()
+          if (cleanPart.length > 2) { // Ignorar partes muito curtas
+            sellerByName.set(cleanPart, user.id)
+          }
+        })
+        // Adicionar também sem acentos e caracteres especiais
+        const nameWithoutAccents = normalizedName
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+        if (nameWithoutAccents !== normalizedName) {
+          sellerByName.set(nameWithoutAccents, user.id)
+        }
       }
+    })
+    
+    console.log(`👥 Vendedores encontrados: ${allUsers?.length || 0}`)
+    allUsers?.forEach((user: any) => {
+      console.log(`   - ${user.name} (${user.id}) - Email: ${user.email || 'N/A'}`)
     })
 
     // Processar orçamentos da tabela budget_documents primeiro
@@ -311,20 +414,79 @@ export async function GET() {
     }
 
     // Processar vendas fechadas
+    let unmatchedSales: any[] = []
+    let elaineSalesDebug: any[] = []
+    
     allSales?.forEach((sale: any) => {
       let sellerId = sale.sold_by
       const sellerName = sale.sold_by_name || 'Sem vendedor'
       const saleAmount = parseFloat(sale.amount || 0)
-      const saleDate = new Date(sale.created_at || sale.sold_at)
+      // Usar sold_at como data principal, fallback para created_at
+      const saleDate = sale.sold_at ? new Date(sale.sold_at) : new Date(sale.created_at)
+
+      // Verificar se é venda fechada (tem sold_at ou stage_name indica venda)
+      const isSold = sale.sold_at !== null || 
+                     sale.stage_name === 'Dinheiro no bolso' ||
+                     sale.stage_name === 'Dinheiro na mesa' ||
+                     sale.stage_name?.toLowerCase().includes('vendido') ||
+                     sale.stage_name?.toLowerCase().includes('fechado') ||
+                     sale.stage_name?.toLowerCase().includes('dinheiro')
+
+      if (!isSold) {
+        return // Pular se não for venda fechada
+      }
+
+      // Debug: verificar se é venda da Elaine
+      const isElaineSale = sellerName?.toLowerCase().includes('elaine') || 
+                          sale.sold_by?.toLowerCase().includes('elaine') ||
+                          (sellerId && sellerById.has(sellerId) && sellerById.get(sellerId)?.name?.toLowerCase().includes('elaine'))
+      
+      if (isElaineSale) {
+        elaineSalesDebug.push({
+          id: sale.id,
+          amount: saleAmount,
+          sold_by: sale.sold_by,
+          sold_by_name: sellerName,
+          stage_name: sale.stage_name,
+          sold_at: sale.sold_at,
+          lead_id: sale.lead_id,
+        })
+      }
 
       // Se não encontrou pelo ID, tentar pelo nome/email
       if (!sellerId || !sellersMap.has(sellerId)) {
-        const normalizedName = sellerName.toLowerCase()
-        // Tentar encontrar pelo email ou nome
-        for (const [key, userId] of Array.from(sellerByEmail.entries())) {
-          if (normalizedName.includes(key) || key.includes(normalizedName.split('@')[0])) {
-            sellerId = userId
-            break
+        const normalizedName = sellerName.toLowerCase().trim()
+        
+        // Tentar encontrar pelo nome exato primeiro
+        if (sellerByName.has(normalizedName)) {
+          sellerId = sellerByName.get(normalizedName)!
+        } else {
+          // Tentar encontrar por partes do nome
+          const nameParts = normalizedName.split(' ')
+          for (const part of nameParts) {
+            const cleanPart = part.trim()
+            if (cleanPart.length > 2 && sellerByName.has(cleanPart)) {
+              sellerId = sellerByName.get(cleanPart)!
+              break
+            }
+          }
+          
+          // Tentar sem acentos
+          const nameWithoutAccents = normalizedName
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+          if (sellerByName.has(nameWithoutAccents)) {
+            sellerId = sellerByName.get(nameWithoutAccents)!
+          }
+        }
+        
+        // Se ainda não encontrou, tentar pelo email
+        if (!sellerId || !sellersMap.has(sellerId)) {
+          for (const [key, userId] of Array.from(sellerByEmail.entries())) {
+            if (normalizedName.includes(key) || key.includes(normalizedName.split('@')[0])) {
+              sellerId = userId
+              break
+            }
           }
         }
       }
@@ -339,16 +501,8 @@ export async function GET() {
         }
       }
 
-      // Verificar se é venda fechada (tem sold_at ou stage_name indica venda)
-      const isSold = sale.sold_at !== null || 
-                     sale.stage_name === 'Dinheiro no bolso' ||
-                     sale.stage_name === 'Dinheiro na mesa' ||
-                     sale.stage_name?.toLowerCase().includes('vendido') ||
-                     sale.stage_name?.toLowerCase().includes('fechado') ||
-                     sale.stage_name?.toLowerCase().includes('dinheiro no bolso')
-
-      // Processar apenas vendas fechadas (orçamentos já foram processados acima)
-      if (isSold && sellerId && sellersMap.has(sellerId)) {
+      // Processar apenas vendas fechadas que foram atribuídas a um vendedor
+      if (sellerId && sellersMap.has(sellerId)) {
         const sellerData = sellersMap.get(sellerId)
         if (sellerData) {
           sellerData.salesCount++
@@ -356,7 +510,7 @@ export async function GET() {
           totals.totalSalesValue += saleAmount
           totals.totalSalesCount++
 
-          // Vendas do dia atual
+          // Vendas do dia atual (usar sold_at se disponível, senão created_at)
           if (saleDate >= today && saleDate < tomorrow) {
             const todayData = todaySalesMap.get(sellerId)
             if (todayData) {
@@ -365,7 +519,40 @@ export async function GET() {
             }
           }
         }
+      } else {
+        // Venda não atribuída a nenhum vendedor - adicionar para debug
+        unmatchedSales.push({
+          id: sale.id,
+          amount: saleAmount,
+          sold_by: sale.sold_by,
+          sold_by_name: sellerName,
+          lead_id: sale.lead_id,
+          stage_name: sale.stage_name,
+          sold_at: sale.sold_at,
+        })
       }
+    })
+
+    // Log de vendas da Elaine para debug
+    if (elaineSalesDebug.length > 0) {
+      console.log(`🔍 Vendas da Elaine encontradas: ${elaineSalesDebug.length}`)
+      elaineSalesDebug.slice(0, 10).forEach((sale, i) => {
+        console.log(`   ${i + 1}. R$ ${sale.amount} - ${sale.sold_by_name} (${sale.sold_by}) - Status: ${sale.stage_name}`)
+      })
+    }
+
+    // Log de vendas não atribuídas para debug
+    if (unmatchedSales.length > 0) {
+      console.log(`⚠️ ${unmatchedSales.length} vendas não foram atribuídas a nenhum vendedor`)
+      unmatchedSales.slice(0, 10).forEach((sale, i) => {
+        console.log(`   ${i + 1}. R$ ${sale.amount} - ${sale.sold_by_name} (${sale.sold_by}) - Status: ${sale.stage_name}`)
+      })
+    }
+    
+    // Log resumo por vendedor
+    console.log(`\n📊 Resumo de vendas por vendedor:`)
+    Array.from(sellersMap.values()).forEach(seller => {
+      console.log(`   ${seller.name}: ${seller.salesCount} vendas = R$ ${seller.salesTotal.toFixed(2)}`)
     })
 
     // Mostrar todos os vendedores, mesmo sem vendas (para aparecer no dashboard)
