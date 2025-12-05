@@ -49,9 +49,18 @@ export default function Dashboard() {
   const [currentNotification, setCurrentNotification] = useState<SaleNotification | null>(null)
   const previousTodaySalesRef = useRef<Map<string, number>>(new Map())
 
-  // Log inicial
+  // Log inicial e solicitar permissão de notificação
   useEffect(() => {
     console.log('🚀 Dashboard montado, iniciando busca de dados...')
+    
+    // Solicitar permissão de notificação quando a página carregar
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().then((permission) => {
+          console.log('Permissão de notificação:', permission)
+        })
+      }
+    }
   }, [])
 
   const fetchData = async () => {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useNotification } from '@/hooks/useNotification'
 
 interface SaleNotificationProps {
   sellerName: string
@@ -10,19 +11,30 @@ interface SaleNotificationProps {
 
 export default function SaleNotification({ sellerName, amount, onClose }: SaleNotificationProps) {
   const [isVisible, setIsVisible] = useState(false)
-  const [audio, setAudio] = useState<HTMLAudioElement | null>(null)
+  const { showNotification, playSound } = useNotification()
 
   useEffect(() => {
-    // Criar elemento de áudio
-    const audioElement = new Audio('/videoplayback.mp3')
-    audioElement.volume = 0.7
-    setAudio(audioElement)
+    // Tocar som primeiro (funciona mesmo em background)
+    playSound('/videoplayback.mp3', 0.8).catch(console.error)
 
-    // Mostrar notificação e tocar som
+    // Mostrar notificação do navegador (estilo WhatsApp)
+    const formattedAmount = new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(amount)
+
+    showNotification(
+      `🎉 ${sellerName} VENDEU! 🎉`,
+      {
+        body: `Valor: ${formattedAmount}`,
+        tag: `sale-${sellerName}-${Date.now()}`, // Evitar duplicatas
+        requireInteraction: false,
+        silent: false,
+      }
+    ).catch(console.error)
+
+    // Mostrar notificação visual na tela também
     setIsVisible(true)
-    audioElement.play().catch(err => {
-      console.error('Erro ao tocar áudio:', err)
-    })
 
     // Auto-fechar após 5 segundos
     const timer = setTimeout(() => {
@@ -32,10 +44,8 @@ export default function SaleNotification({ sellerName, amount, onClose }: SaleNo
 
     return () => {
       clearTimeout(timer)
-      audioElement.pause()
-      audioElement.currentTime = 0
     }
-  }, [onClose])
+  }, [onClose, sellerName, amount, showNotification, playSound])
 
   // Gerar notas de dinheiro caindo
   const moneyNotes = Array.from({ length: 20 }, (_, i) => ({
