@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import SaleNotification from '@/components/SaleNotification'
 
 interface DashboardData {
   totals: {
@@ -33,12 +34,20 @@ interface DashboardData {
   }[]
 }
 
+interface SaleNotification {
+  sellerName: string
+  amount: number
+  id: string
+}
+
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
   const [hideNumbers, setHideNumbers] = useState(false)
+  const [currentNotification, setCurrentNotification] = useState<SaleNotification | null>(null)
+  const previousTodaySalesRef = useRef<Map<string, number>>(new Map())
 
   // Log inicial
   useEffect(() => {
@@ -77,6 +86,45 @@ export default function Dashboard() {
       if (!result || !result.totals || !result.sellers) {
         throw new Error('Dados inválidos recebidos da API')
       }
+      
+      // Detectar novas vendas comparando com o estado anterior
+      if (result.todaySales && previousTodaySalesRef.current.size > 0) {
+        result.todaySales.forEach((todaySale: { sellerId: string; sellerName: string; salesTotal: number }) => {
+          const previousTotal = previousTodaySalesRef.current.get(todaySale.sellerId) || 0
+          const currentTotal = todaySale.salesTotal
+          
+          // Se o total aumentou, significa que houve uma nova venda
+          if (currentTotal > previousTotal) {
+            const newSaleAmount = currentTotal - previousTotal
+            
+            // Verificar se é uma das vendedoras (Elaine, Julia, Maria Vitória)
+            const sellerName = todaySale.sellerName.toLowerCase()
+            const isTargetSeller = 
+              sellerName.includes('elaine') || 
+              sellerName.includes('julia') || 
+              sellerName.includes('maria')
+            
+            if (isTargetSeller && newSaleAmount > 0) {
+              console.log(`🎉 Nova venda detectada: ${todaySale.sellerName} - R$ ${newSaleAmount}`)
+              
+              // Criar notificação única com timestamp para evitar duplicatas
+              const notificationId = `${todaySale.sellerId}-${Date.now()}`
+              setCurrentNotification({
+                sellerName: todaySale.sellerName,
+                amount: newSaleAmount,
+                id: notificationId,
+              })
+            }
+          }
+        })
+      }
+      
+      // Atualizar referência das vendas de hoje
+      const newTodaySalesMap = new Map<string, number>()
+      result.todaySales?.forEach((sale: { sellerId: string; salesTotal: number }) => {
+        newTodaySalesMap.set(sale.sellerId, sale.salesTotal)
+      })
+      previousTodaySalesRef.current = newTodaySalesMap
       
       setData(result)
       setLastUpdate(new Date())
@@ -897,6 +945,15 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      
+      {/* Notificação de Nova Venda */}
+      {currentNotification && (
+        <SaleNotification
+          sellerName={currentNotification.sellerName}
+          amount={currentNotification.amount}
+          onClose={() => setCurrentNotification(null)}
+        />
+      )}
     </div>
   )
 }
